@@ -1,0 +1,9 @@
+download binary from http://svmlight.joachims.org/
+
+1)
+
+svm_learn training_file model_file -c 0.01 -t 2
+
+2) 
+
+svm_classify test_file model_file output_file

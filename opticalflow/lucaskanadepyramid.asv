@@ -1,0 +1,156 @@
+% function [] = lucaskanadepyramid(image1, image2)
+
+close all
+
+width = 10;
+image1 = zeros(width, width);
+image1(4,4) = 255;
+image1(4,5) = 255;
+image1(5,4) = 255;
+image1(5,5) = 255;
+
+image2 = zeros(width, width);
+image2(6,4) = 255;
+image2(6,5) = 255;
+image2(7,4) = 255;
+image2(7,5) = 255;
+
+figure;
+imshow(image1);
+
+figure;
+imshow(image2);
+
+[rows, cols] = size(image1);
+
+%calculate lucas kanade for highest level
+% [u,v] = lucaskanade(image, image2);
+
+maxlevel = 2;
+windowx = 2;
+windowy = 2;
+
+
+%% calculate pyramid for the images
+
+% add boundary in the image
+image1new = [image1(1,1) image1(1,:) image1(1,end)
+    image1(:,1) image1 image1(:,end)
+    image1(end,1) image1(end,:) image1(end,end)];
+image2new = [image2(1,1) image2(1,:) image2(1,end)
+    image2(:,1) image2 image2(:,end)
+    image2(end,1) image2(end,:) image2(end,end)];
+
+filterreduce = [0.0625 0.125 0.0625
+    0.125 0.25 0.125
+    0.0625 0.125 0.0625];
+height = floor((rows+1)/2);
+width = floor((cols+1)/2);
+imagea = zeros(height, width);
+imageb = zeros(height, width);
+
+for i = 1 : height
+    for j = 1 : width
+        neighbourhood1 = image1new(2*i-1:2*i+1, 2*j-1:2*j+1);
+        answer1 = filterreduce.*neighbourhood1;
+%         disp(answer);
+        value1 = sum(sum(answer1)');
+%         disp(value);
+        imagea(i,j) = value1;
+        neighbourhood2 = image2new(2*i-1:2*i+1, 2*j-1:2*j+1);
+        answer2 = filterreduce.*neighbourhood2;
+%         disp(answer);
+        value2 = sum(sum(answer2)');
+%         disp(value);
+        imageb(i,j) = value2;
+    end
+end
+
+%% guess
+guessu = zeros(height, width);
+guessv = zeros(height, width);
+
+%% calculate the optical flow at the deepest level and this wil be used as
+%the initial guess
+[u2,v2] = lucaskanade(imagea, imageb);
+[rows2, cols2] = size(imagea);
+
+
+%% bilinearly interpolate the optical flow
+% get double resolution
+u3 = zeros(rows, cols);
+v3 = zeros(rows, cols);
+for i = 1 : rows2 - 1
+    for j = 1 : cols2 - 1
+        %compute the values in all four directions for u and v
+        u3(2*i-1,2*j-1) = u2(i,j);
+        u3(2*i-1,2*j+1) = u2(i,j+1);
+        u3(2*i+1,2*j-1) = u2(i+1,j);
+        u3(2*i+1,2*j+1) = u2(i+1,j+1);
+        
+        v3(2*i-1,2*j-1) = v2(i,j);
+        v3(2*i-1,2*j+1) = v2(i,j+1);
+        v3(2*i+1,2*j-1) = v2(i+1,j);
+        v3(2*i+1,2*j+1) = v2(i+1,j+1);
+        
+        %apply interpolation formula
+        coefficients = [1, 2*i-1, 2*j-1, (2*i-1)*(2*j-1)
+            1, 2*i-1, 2*j+1, (2*i-1)*(2*j+1)
+            1, 2*i+1, 2*j-1, (2*i+1)*(2*j-1)
+            1, 2*i+1, 2*j+1, (2*i+1)*(2*j+1)];
+        valuesu = [u2(i,j)
+            u2(i,j+1)
+            u2(i+1,j)
+            u2(i+1,j+1)];
+        solutionu = valuesu\coefficients; %inv(coefficients) * values;
+        
+        %          disp(solutionu);
+        
+        u3(2*i-1,2*j) = solutionu * [1; 2*i-1; 2*j; (2*i-1)*(2*j)];
+        u3(2*i,2*j-1) = solutionu * [1; 2*i; 2*j-1; (2*i)*(2*j-1)];
+        u3(2*i,2*j) = solutionu * [1; 2*i; 2*j; (2*i)*(2*j)];
+        u3(2*i,2*j+1) = solutionu * [1; 2*i; 2*j+1; (2*i)*(2*j+1)];
+        u3(2*i+1,2*j) =  solutionu * [1; 2*i+1; 2*j; (2*i+1)*(2*j)];
+        disp('hello');
+        disp(u3(2*i-1,2*j));
+        
+        %do the same interpolation formula for v as well
+        valuesv = [v2(i,j)
+            v2(i,j+1)
+            v2(i+1,j)
+            v2(i+1,j+1)];
+        solutionv = valuesv\coefficientsu; %inv(coefficients) * values;
+        
+        %          disp(solutionu);
+        
+        v3(2*i-1,2*j) = solutionv * [1; 2*i-1; 2*j; (2*i-1)*(2*j)];
+        v3(2*i,2*j-1) = solutionv * [1; 2*i; 2*j-1; (2*i)*(2*j-1)];
+        v3(2*i,2*j) = solutionv * [1; 2*i; 2*j; (2*i)*(2*j)];
+        v3(2*i,2*j+1) = solutionv * [1; 2*i; 2*j+1; (2*i)*(2*j+1)];
+        v3(2*i+1,2*j) =  solutionv * [1; 2*i+1; 2*j; (2*i+1)*(2*j)];
+    end
+end
+
+
+%now multiply by two so it belongs to the next level
+u3 = 2 * u3;
+v3 = 2 * v3;
+
+
+%calculate the value of ft for a block
+%ft = fx*u  + fy*v
+ft = zeros(rows, cols);
+for i = 1 : rows
+    for j = 1 : cols
+        ft(i,j) = image2(i+u3(i,j) ,j+v3(i,j)) - image1(i);
+    end
+end
+
+%compute residual error
+[uerror, verror] = lucaskanade(image1, image1 + ft);
+
+%add the corrections
+u3 = u3 + uerror;
+v3 = v3 + verror;
+
+% end

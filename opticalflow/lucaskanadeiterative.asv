@@ -1,0 +1,132 @@
+function [u0,v0] = lucaskanadeiterative(image1, image2, u3, v3)
+
+[rows, cols] = size(image1);
+
+windowx= 2;
+windowy =2;
+
+%calculate fx, fy, ft
+filterdx = [-0.5 0 0.5];
+filterdy  = filterdx';
+
+fx = conv2(double(image1) , filterdx, 'same');
+
+figure;
+imshow(fx);
+
+fy = conv2(double(image1) , filterdy, 'same');
+
+figure;
+imshow(fy);
+
+%calculate the value of ft for a block
+%ft = fx*u  + fy*v
+ft = zeros(rows, cols);
+for i = 1 : rows
+    for j = 1 : cols
+        ft(i,j) = image2(i+u3(i,j) ,j+v3(i,j)) - image1(i,j);
+    end
+end
+
+%do lucas kanade
+g = zeros(rows, cols,3);
+
+
+%for all pixels
+threshold = 0.5;
+for i = windowx+1 : rows - windowx
+    for j = windowy+1 : cols - windowy
+        
+        sumfx2 = 0;
+        sumfy2 = 0;
+        sumfxfy = 0;
+        
+        %construct a 3x3 window
+        for a = -windowx : windowx
+            for b = -windowy : windowy
+                
+                %calculate all the sums
+                sumfx2 = sumfx2 + fx(i+a, j+b)^2;
+                sumfy2 = sumfy2 + fy(i+a, j+b)^2;
+                sumfxfy = sumfxfy + fx(i+a, j+b) * fy(i+a, j+b);
+            end
+        end
+        
+        %compose spatial gradieent matrix
+        g(i,j,1) = sumfx2;
+        g(i,j,2) = sumfxfy;
+        g(i,j,3) =  sumfy2;
+        
+    end
+end
+
+
+u0 = zeros(rows, cols);
+v0 = zeros(rows, cols);
+difference = zeros(rows, cols);
+
+for k = 1: 10
+    
+    for i = 1 + windowx+1 : rows - windowx-1
+        for j = 1 + windowy+1 : cols - windowy-1
+             %calculate image difference
+             x = i+u3(i,j) + u0(i,j);
+             y = j+v3(i,j) + v0(i,j);
+             
+             
+             
+             floorx = x - floor(x);
+             floory = x - floor(y);
+             ceilx = 1 - floorx;
+             ceily = 1 - floory;
+             image2value= ceilx*ceily * image2(floorx, floory) + ceilx*floory * image2(floorx, ceily) +  floorx*ceily * image2(ceilx, floory) + floorx*floory * image2(ceilx, ceily);
+             
+             difference(i,j) =image1(i,j) - image2value;
+        end
+    end
+    
+     for i = 1 + windowx+1 : rows - windowx-1
+        for j = 1 + windowy+1 : cols - windowy-1
+            
+            sumdiffx = 0;
+            sumdiffy = 0;
+            for a = -windowx : windowx
+                for b = -windowy : windowy
+                    
+                    %calculate all the sums
+                    sumdiffx = sumdiffx + difference(i+a, j+b) * fx(i,j);
+                    sumdiffy = sumdiffy + difference(i+a, j+b) * fy(i,j);
+                end
+            end
+            mismatcherror = [sumdiffx
+                sumdiffy];
+            gmatrix = [g(i,j,1) g(i,j,2)
+                g(i,j,2) g(i,j,3)];
+            
+            gmatrix
+            mismatcherror
+            
+            
+            error = inv(gmatrix) * mismatcherror;
+            
+            u0(i,j) = u0(i,j) + error(1);
+            v0(i,j) = v0(i,j) + error(2);
+            
+            accuracy = sqrt(error(1) * error(1) + error(2)*error(2));
+            if accuracy< threshold
+                break;
+            end
+            
+        end        
+    end
+    
+end
+
+
+
+figure;
+% imshow(image1);
+% hold on;
+quiver(u0,v0);
+
+end
