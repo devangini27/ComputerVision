@@ -1,7 +1,9 @@
-computervisionmatlab
+computervision
 ====================
 
-Basic computer vision scripts in matlab
+Basic computer vision scripts in matlab and python
+
+Matlab:
 
 - edge detection
 - corner detection
@@ -9,3 +11,6 @@ Basic computer vision scripts in matlab
 - hog
 - optical flow
 - gabor filter
+
+Python:
+
